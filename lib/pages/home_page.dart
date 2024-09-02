@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:weather_app_dri_test/pages/widgets/daily-weather_item.dart';
 import 'package:weather_app_dri_test/pages/widgets/hourly-weather_item.dart';
+import 'package:weather_app_dri_test/shared/app_format.dart';
 import 'package:weather_app_dri_test/shared/style.dart';
 import 'package:http/http.dart' as http;
 import 'package:weather_app_dri_test/shared/weather_helper.dart';
@@ -27,6 +28,7 @@ class _HomePageState extends State<HomePage> {
 
   Map<String, dynamic>? selectedWeatherData;
 
+  // Mengambil daftar daerah dari API
   Future<List<dynamic>> getArea() async {
     try {
       final result = await http.get(Uri.parse(url));
@@ -42,6 +44,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // Mengambil data cuaca untuk daerah yang dipilih dan mengupdate state untuk menampilkan data cuaca.
   void getWeatherData() {
     if (selectedWeatherData != null) {
       setState(() {
@@ -54,7 +57,7 @@ class _HomePageState extends State<HomePage> {
           String temp = data['value'][0]['\$t'];
 
           hourlyWeatherData.add({
-            'time': formatTime(datetime),
+            'time': AppFormat().formatTime(datetime),
             'temp': temp,
           });
         }
@@ -65,7 +68,7 @@ class _HomePageState extends State<HomePage> {
           String temp = data['value'][0]['\$t'];
 
           dailyWeatherData.add({
-            'time': formatTime(datetime),
+            'time': AppFormat().formatTime(datetime),
             'temp': temp,
           });
         }
@@ -73,6 +76,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // Mengambil dan menampilkan data cuaca untuk daerah yang dipilih
   void getWeatherDataForSelectedArea(String areaDescription) {
     final area = daerah.firstWhere(
       (area) => area['description'] == areaDescription,
@@ -84,24 +88,6 @@ class _HomePageState extends State<HomePage> {
         selectedWeatherData = area;
         getWeatherData();
       });
-    }
-  }
-
-  String formatTime(String datetime) {
-    try {
-      if (datetime.length == 12) {
-        String datePart = datetime.substring(0, 8);
-        String timePart = datetime.substring(8, 12);
-
-        DateTime parsedDatetime = DateTime.parse('${datePart}T$timePart');
-        return DateFormat('HH:mm').format(parsedDatetime);
-      } else {
-        print('Unexpected datetime length: ${datetime.length}');
-        return "Invalid Time";
-      }
-    } catch (e) {
-      print('Error parsing datetime: $e');
-      return "Invalid Time";
     }
   }
 
