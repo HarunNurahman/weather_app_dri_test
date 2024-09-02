@@ -42,41 +42,49 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void parseWeatherData() {
+  void getWeatherData() {
     if (selectedWeatherData != null) {
-      hourlyWeatherData.clear();
-      dailyWeatherData.clear();
+      setState(() {
+        hourlyWeatherData = [];
+        dailyWeatherData = [];
 
-      var hourlyData = selectedWeatherData!['parameter'][5]['timerange'];
-      for (var data in hourlyData) {
-        String datetime = data['datetime'];
-        String temp = data['value'][0]['\$t'];
-        hourlyWeatherData.add({
-          'time': formatTime(datetime),
-          'temp': temp,
-        });
-      }
+        var hourlyData = selectedWeatherData!['parameter'][5]['timerange'];
+        for (var data in hourlyData) {
+          String datetime = data['datetime'];
+          String temp = data['value'][0]['\$t'];
 
-      var dailyData = selectedWeatherData!['parameter'][2]['timerange'];
-      for (var data in dailyData) {
-        String datetime = data['datetime'];
-        String temp = data['value'][0]['\$t'];
-        dailyWeatherData.add({
-          'time': formatTime(datetime),
-          'temp': temp,
-        });
-      }
+          hourlyWeatherData.add({
+            'time': formatTime(datetime),
+            'temp': temp,
+          });
+        }
+
+        var dailyData = selectedWeatherData!['parameter'][2]['timerange'];
+        for (var data in dailyData) {
+          String datetime = data['datetime'];
+          String temp = data['value'][0]['\$t'];
+
+          dailyWeatherData.add({
+            'time': formatTime(datetime),
+            'temp': temp,
+          });
+        }
+      });
     }
   }
 
   void getWeatherDataForSelectedArea(String areaDescription) {
-    setState(() {
-      selectedWeatherData = daerah.firstWhere(
-        (area) => area['description'] == areaDescription,
-        orElse: () => null,
-      );
-      parseWeatherData();
-    });
+    final area = daerah.firstWhere(
+      (area) => area['description'] == areaDescription,
+      orElse: () => null,
+    );
+
+    if (area != null) {
+      setState(() {
+        selectedWeatherData = area;
+        getWeatherData();
+      });
+    }
   }
 
   String formatTime(String datetime) {
@@ -86,7 +94,6 @@ class _HomePageState extends State<HomePage> {
         String timePart = datetime.substring(8, 12);
 
         DateTime parsedDatetime = DateTime.parse('${datePart}T$timePart');
-
         return DateFormat('HH:mm').format(parsedDatetime);
       } else {
         print('Unexpected datetime length: ${datetime.length}');
@@ -100,12 +107,14 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void initState() {
+    super.initState();
     getArea().then((value) {
       setState(() {
         daerah = value;
       });
+    }).catchError((error) {
+      print('Failed to fetch area data: $error');
     });
-    super.initState();
   }
 
   @override
@@ -116,161 +125,153 @@ class _HomePageState extends State<HomePage> {
         child: Scaffold(
           body: Column(
             children: [
-              FutureBuilder<List<dynamic>>(
-                future: getArea(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Text('Something went wrong: ${snapshot.error}'),
-                    );
-                  }
-
-                  if (snapshot.hasData) {
-                    return Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 24),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            blueColor,
-                            blueColor.withOpacity(0.7),
-                          ],
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // Dropdown daerah
-                          DropdownButtonHideUnderline(
-                            child: DropdownButton(
-                              icon: Icon(Icons.arrow_drop_down,
-                                  color: whiteColor),
-                              style: blackTextStyle,
-                              hint: Text(
-                                selectedDaerah ?? 'Pilih Daerah',
-                                style: whiteTextStyle,
-                              ),
-                              onChanged: (value) {
-                                setState(() {
-                                  selectedDaerah = value!;
-                                  getWeatherDataForSelectedArea(
-                                      selectedDaerah!);
-                                });
-                              },
-                              items:
-                                  daerah.map<DropdownMenuItem<String>>((item) {
-                                return DropdownMenuItem(
-                                    value: item['description'].toString(),
-                                    child: Text(
-                                      item['description'].toString(),
-                                    ));
-                              }).toList(),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          // Daerah
-                          Text(
-                            selectedDaerah ?? 'Pilih Daerah',
-                            style: whiteTextStyle.copyWith(fontSize: 24),
-                          ),
-                          // Terakhir update dan deskripsi cuaca
-                          Text(
-                            DateFormat('EEEE, dd MMMM yyyy, HH:mm')
-                                .format(DateTime.now()),
-                            style: whiteTextStyle,
-                          ),
-                          const SizedBox(height: 24),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              // Temperature
-                              Text(
-                                selectedWeatherData != null
-                                    ? '${selectedWeatherData?['parameter'][2]['timerange'][0]['value'][0]['\$t']}°'
-                                    : '',
-                                style: whiteTextStyle.copyWith(fontSize: 48),
-                              ),
-                              Column(
-                                children: [
-                                  // Icon cuaca
-                                  selectedWeatherData != null
-                                      ? parserIconWheather(
-                                            '${selectedWeatherData?['parameter'][6]['timerange'][0]['value']['\$t']}',
-                                            48,
-                                            whiteColor,
-                                          ) ??
-                                          Container()
-                                      : Container(),
-                                  const SizedBox(height: 8),
-                                  // Deskripsi cuaca
-                                  Text(
-                                    weatherParser(
-                                        '${selectedWeatherData?['parameter'][6]['timerange'][0]['value']['\$t']}'),
-                                    style:
-                                        whiteTextStyle.copyWith(fontSize: 16),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return Center(
-                    child: CircularProgressIndicator(color: blueColor),
-                  );
-                },
-              ),
-              TabBar(
-                indicatorColor: blueColor,
-                labelColor: blueColor,
-                unselectedLabelColor: Colors.grey,
-                tabs: const [
-                  Tab(text: 'Hari Ini'),
-                  Tab(text: 'Besok'),
-                ],
-              ),
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    // View cuaca hari ini
-                    ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: hourlyWeatherData.length,
-                      itemBuilder: (BuildContext context, int index) {
-                        final weather = hourlyWeatherData[index];
-                        return HourlyItem(
-                          jam: weather['time']!,
-                          iconUrl:
-                              '${selectedWeatherData?['parameter'][6]['timerange'][index]['value']['\$t']}',
-                          temp: '${weather['temp']}°',
-                        );
-                      },
-                    ),
-                    ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: dailyWeatherData.length,
-                      itemBuilder: (BuildContext context, int index) {
-                        final weather = dailyWeatherData[index];
-
-                        return DailyItem(
-                          jam: weather['time']!,
-                          iconUrl:
-                              '${selectedWeatherData?['parameter'][6]['timerange'][index]['value']['\$t']}',
-                          temp: '${weather['temp']}°',
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
+              daerah.isEmpty
+                  ? Center(child: CircularProgressIndicator(color: blueColor))
+                  : content(),
+              tabBar(),
+              tabBarView(),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget content() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            blueColor,
+            blueColor.withOpacity(0.7),
+          ],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Dropdown daerah
+          DropdownButtonHideUnderline(
+            child: DropdownButton(
+              icon: Icon(Icons.arrow_drop_down, color: whiteColor),
+              style: blackTextStyle,
+              hint: Text(
+                selectedDaerah ?? 'Pilih Daerah',
+                style: whiteTextStyle,
+              ),
+              onChanged: (value) {
+                setState(() {
+                  selectedDaerah = value!;
+                  getWeatherDataForSelectedArea(selectedDaerah!);
+                });
+              },
+              items: daerah.map<DropdownMenuItem<String>>((item) {
+                return DropdownMenuItem(
+                    value: item['description'].toString(),
+                    child: Text(
+                      item['description'].toString(),
+                    ));
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Daerah
+          Text(
+            selectedDaerah ?? 'Pilih Daerah',
+            style: whiteTextStyle.copyWith(fontSize: 24),
+          ),
+          // Terakhir update dan deskripsi cuaca
+          Text(
+            DateFormat('EEEE, dd MMMM yyyy, HH:mm').format(DateTime.now()),
+            style: whiteTextStyle,
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              // Temperature
+              Text(
+                selectedWeatherData != null
+                    ? '${selectedWeatherData?['parameter'][2]['timerange'][0]['value'][0]['\$t']}°'
+                    : '',
+                style: whiteTextStyle.copyWith(fontSize: 48),
+              ),
+              Column(
+                children: [
+                  // Icon cuaca
+                  selectedWeatherData != null
+                      ? parserIconWheather(
+                            '${selectedWeatherData?['parameter'][6]['timerange'][0]['value']['\$t']}',
+                            48,
+                            whiteColor,
+                          ) ??
+                          Container()
+                      : Container(),
+                  const SizedBox(height: 8),
+                  // Deskripsi cuaca
+                  Text(
+                    weatherParser(
+                        '${selectedWeatherData?['parameter'][6]['timerange'][0]['value']['\$t']}'),
+                    style: whiteTextStyle.copyWith(fontSize: 16),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget tabBar() {
+    return TabBar(
+      indicatorColor: blueColor,
+      labelColor: blueColor,
+      unselectedLabelColor: Colors.grey,
+      tabs: const [
+        Tab(text: 'Hari Ini'),
+        Tab(text: 'Besok'),
+      ],
+    );
+  }
+
+  Widget tabBarView() {
+    return Expanded(
+      child: TabBarView(
+        children: [
+          // View cuaca hari ini
+          ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: hourlyWeatherData.length,
+            itemBuilder: (BuildContext context, int index) {
+              final weather = hourlyWeatherData[index];
+              return HourlyItem(
+                jam: weather['time']!,
+                iconUrl:
+                    '${selectedWeatherData?['parameter'][6]['timerange'][index]['value']['\$t']}',
+                temp: '${weather['temp']}°',
+              );
+            },
+          ),
+          ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: dailyWeatherData.length,
+            itemBuilder: (BuildContext context, int index) {
+              final weather = dailyWeatherData[index];
+
+              return DailyItem(
+                jam: weather['time']!,
+                iconUrl:
+                    '${selectedWeatherData?['parameter'][6]['timerange'][index]['value']['\$t']}',
+                temp: '${weather['temp']}°',
+              );
+            },
+          ),
+        ],
       ),
     );
   }
