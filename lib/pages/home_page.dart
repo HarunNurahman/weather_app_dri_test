@@ -111,9 +111,7 @@ class _HomePageState extends State<HomePage> {
         child: Scaffold(
           body: Column(
             children: [
-              daerah.isEmpty
-                  ? Center(child: CircularProgressIndicator(color: blueColor))
-                  : content(),
+              content(),
               tabBar(),
               tabBarView(),
             ],
